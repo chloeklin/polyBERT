@@ -5,12 +5,11 @@ This repository holds the code to train polyBERT. polyBERT is a chemical languag
 **Abstract:** Polymers are a vital part of everyday life. Their chemical universe is so large that it presents unprecedented opportunities as well as significant challenges to identify suitable application-specific candidates. We present a complete end-to-end machine-driven polymer informatics pipeline that can search this space for suitable candidates at unprecedented speed and accuracy. This pipeline includes a polymer chemical fingerprinting capability called polyBERT (inspired by Natural Language Processing concepts), and a multitask learning approach that maps the polyBERT fingerprints to a host of properties. polyBERT is a chemical linguist that treats the chemical structure of polymers as a chemical language. The present approach outstrips the best presently available concepts for polymer property prediction based on handcrafted fingerprint schemes in speed by two orders of magnitude while preserving accuracy, thus making it a strong candidate for deployment in scalable architectures including cloud infrastructures.
 
 
-## Pre-trained polyBERT
+The trained polyBERT model is available at the [Hugginface hub](https://huggingface.co/kuelumbus/polyBERT) for download.
 
-The already trained polyBERT model is available at the [Hugginface hub](https://huggingface.co/kuelumbus/polyBERT) for download.
+## polyBERT polymer fingerprints
 
-
-**I strongly recommend using the PSMILES Python package (`pip install psmiles`) for generating polyBERT fingerprints. It takes care of the necessary PSMILES canonicalization step before computing polyBERT fingerprints. Please see [PSMILES](https://github.com/Ramprasad-Group/psmiles)**
+I strongly recommend using the `psmiles` Python package (`pip install psmiles`) for generating polymer fingerprints with polyBERT. It takes care of downloading polyBERT, canonicalization of PSMILES strings, and computing polyBERT fingerprints. Please see the [PSMILES](https://github.com/Ramprasad-Group/psmiles) on GitHub.
 
 ## Prepare Python environment
 
@@ -37,4 +36,4 @@ poetry install
 
 3. Tokenize the data set `poetry run python do_tokenize.py`.
 
-3. Train polyBERT `poetry run python train_transformer.py`. This might be very slow if you do not have access to GPUs.
+4. Train polyBERT `poetry run python train_transformer.py`. This can be very slow if you do not have access to GPUs.
