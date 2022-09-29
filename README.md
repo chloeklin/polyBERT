@@ -11,6 +11,10 @@ The trained polyBERT model is available at the [Hugginface hub](https://huggingf
 
 I strongly recommend using the `psmiles` Python package for generating polymer fingerprints with polyBERT. It takes care of downloading polyBERT, canonicalization of PSMILES strings, and computing polyBERT fingerprints. Please see the [PSMILES](https://github.com/Ramprasad-Group/psmiles) on GitHub.
 
+## polyOne data set
+
+The polyOne data set is used to train polyBERT. It can be downloaded from [Zenodo](https://zenodo.org/record/7124188).
+
 ## Prepare Python environment
 
 1. Make sure [Poetry](https://python-poetry.org/docs/) is installed
