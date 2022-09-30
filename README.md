@@ -1,9 +1,8 @@
 # polyBERT: A chemical language model to enable fully machine-driven ultrafast polymer informatics
 
-This repository holds the code to train polyBERT. polyBERT is a chemical language machine learning model that has learned the PSMILES chemical language of polymers. It can be used for generating polymer fingerprints (based on PSMILES strings) at unprecedented speed. polyBERT enables ultrafast polymer informatics and fully machine-driven property predictions. polyBERT runs on GPUs and CPUs and is seamlessly scalable on cloud infrastructure. The polyBERT paper is available at [ArXiv](https://arxiv.org/abs/). 
+This repository holds the code to train polyBERT. polyBERT is a chemical language machine learning model that has learned the PSMILES chemical language of polymers. It can be used for generating polymer fingerprints (based on PSMILES strings) at unprecedented speed. polyBERT enables ultrafast polymer informatics and fully machine-driven property predictions. polyBERT runs on GPUs and CPUs and is seamlessly scalable on cloud infrastructure. The polyBERT paper is available at [arXiv](https://arxiv.org/abs/2209.14803). 
 
 **Abstract:** Polymers are a vital part of everyday life. Their chemical universe is so large that it presents unprecedented opportunities as well as significant challenges to identify suitable application-specific candidates. We present a complete end-to-end machine-driven polymer informatics pipeline that can search this space for suitable candidates at unprecedented speed and accuracy. This pipeline includes a polymer chemical fingerprinting capability called polyBERT (inspired by Natural Language Processing concepts), and a multitask learning approach that maps the polyBERT fingerprints to a host of properties. polyBERT is a chemical linguist that treats the chemical structure of polymers as a chemical language. The present approach outstrips the best presently available concepts for polymer property prediction based on handcrafted fingerprint schemes in speed by two orders of magnitude while preserving accuracy, thus making it a strong candidate for deployment in scalable architectures including cloud infrastructures.
-
 
 The trained polyBERT model is available at the [Hugginface hub](https://huggingface.co/kuelumbus/polyBERT) for download.
 
@@ -34,7 +33,7 @@ poetry install
 
 ## Train polyBERT
 
-1. Download the 100 million PSMILES strings from [zenodo](https://zenodo.org/record/7124188) and place it in the `polyBERT` directory. You need the `generated_polymer_smiles_train.txt` and `generated_polymer_smiles_dev.txt` files.
+1. Download the 100 million PSMILES strings from [Zenodo](https://zenodo.org/record/7124188) and place it in the `polyBERT` directory. You need the `generated_polymer_smiles_train.txt` and `generated_polymer_smiles_dev.txt` files.
 
 2. Train the tokenizer `poetry run python train_tokenizer.py`. Make sure the path to the data set of 100 million PSMILES is correct. 
 
