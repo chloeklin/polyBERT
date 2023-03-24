@@ -12,7 +12,7 @@ If want to generate polymer fingerprints from PSMILES strings with polyBERT, I s
 
 # polyOne data set
 
-The data set contains 100 million hypothetical polymers each with 29 predicted properties using polyBERT. It is openly available at [Zenodo](https://zenodo.org/record/7124188).
+The data set contains 100 million hypothetical polymers each with 29 predicted properties using polyBERT. It is openly available at [Zenodo](https://zenodo.org/record/7766806).
 
 The data set is sharded into smaller chunks (each has about 115MB) for better and faster processing. If you want to download all files, I recommend using `zenodo-get`.
 
