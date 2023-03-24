@@ -47,7 +47,7 @@ poetry config virtualenvs.in-project true
 poetry install
 ```
 
-3. Download the 100 million PSMILES strings from [Zenodo](https://zenodo.org/record/7124188) and place it in the `polyBERT` directory. You need the `generated_polymer_smiles_train.txt` and `generated_polymer_smiles_dev.txt` files.
+3. Download the 100 million PSMILES strings from [Zenodo](https://zenodo.org/record/7766806) and place it in the `polyBERT` directory. You need the `generated_polymer_smiles_train.txt` and `generated_polymer_smiles_dev.txt` files.
 
 4. Train the tokenizer `poetry run python train_tokenizer.py`. Make sure the path to the downloaded data files is correct. 
 
