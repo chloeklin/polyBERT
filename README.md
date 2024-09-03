@@ -1,6 +1,6 @@
 # polyBERT: A chemical language model to enable fully machine-driven ultrafast polymer informatics
 
-# The code and data shared here is available for academic non-commercial use only
+# IMPORTANT NOTE: The code and data shared here is available for academic non-commercial use only
 
 This repository contains the code and data set of the polyBERT paper, which can be accessed on [Nature Communications](https://doi.org/10.1038/s41467-023-39868-6) and [arXiv](https://arxiv.org/abs/2209.14803). polyBERT is a large chemical language machine learning model that has learned the PSMILES chemical language of polymers. It generates polymer fingerprints (PSMILES-based) quickly, facilitating rapid polymer informatics and machine-driven property predictions. polyBERT is compatible with GPUs and CPUs, and can easily scale on cloud systems.
 
