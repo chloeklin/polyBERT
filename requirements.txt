@@ -1,0 +1,6 @@
+transformers
+sentencepiece
+datasets
+pathlib
+torch
+accelerate

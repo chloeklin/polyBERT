@@ -1,10 +1,19 @@
+import torch
+import argparse
+import pandas as pd
 import sentencepiece as spm
+
+original_pretrain_file = 'generated_polymer_smiles_train'
+
+# Create CUDA events to record GPU start and end times
+start_event = torch.cuda.Event(enable_timing=True)
+end_event = torch.cuda.Event(enable_timing=True)
+
 
 elements = ['H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na', 'Mg', 'Al', 'Si', 'P', 'S', 'Cl', 'Ar', 'K', 'Ca', 'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn', 'Ga', 'Ge', 'As', 'Se', 'Br', 'Kr', 'Rb', 'Sr', 'Y', 'Zr', 'Nb', 'Mo', 'Tc', 'Ru', 'Rh', 'Pd', 'Ag', 'Cd', 'In', 'Sn', 'Sb', 'Te', 'I', 'Xe', 'Cs', 'Ba', 'La', 'Hf', 'Ta', 'W', 'Re', 'Os', 'Ir', 'Pt', 'Au', 'Hg', 'Tl', 'Pb', 'Bi', 'Po', 'At', 'Rn', 'Fr', 'Ra', 'Ac', 'Rf', 'Db', 'Sg', 'Bh', 'Hs', 'Mt', 'Ds', 'Rg', 'Cn', 'Nh', 'Fl', 'Mc', 'Lv', 'Ts', 'Og', 'Ce', 'Pr', 'Nd', 'Pm', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb', 'Lu', 'Th', 'Pa', 'U', 'Np', 'Pu', 'Am', 'Cm', 'Bk', 'Cf', 'Es', 'Fm', 'Md', 'No', 'Lr']
 
 small_elements = [i.lower() for i in elements]
 
-# els = ['C', 'Br', 'Cl', 'N', 'O', 'S', 'P', 'F', 'I', 'b', 'c', 'n', 'o', 's', 'p', "H", "Si"]
 special_tokens =[
     "<pad>",
     "<mask>",
@@ -18,18 +27,45 @@ special_tokens =[
 
 special_tokens += elements + small_elements
 
-# unk, .. tokens are already defined
-# The file generated_polymer_smiles.txt needs to contain the 100m PSMILES strings. One per line.
-spm.SentencePieceTrainer.train(input='generated_polymer_smiles.txt',
-                               model_prefix='spm',
-                               vocab_size=265,
-                               input_sentence_size=5_000_000,
-                            #    shuffle_input_sentence=True, # data set is already shuffled
-                               character_coverage=1,
-                               user_defined_symbols=special_tokens,
-                               )
+# read pretrain file
+file_path = 'pretrain_info.csv'
+df = pd.read_csv(file_path)
+
+
+def main():
+    # Create an ArgumentParser object
+    parser = argparse.ArgumentParser()
+
+    # Define the command-line arguments
+    parser.add_argument('--size', type=str, help='Pretraining size')
+    # Parse the arguments
+    args = parser.parse_args()
+    size=args.size
+
+    # Record the start time on GPU
+    start_event.record()
+
+    spm.SentencePieceTrainer.train(input=f'{original_pretrain_file}_{size}.txt',
+                                model_prefix=f'spm_{size}',
+                                vocab_size=265,
+                                input_sentence_size=5_000_000,
+                                #    shuffle_input_sentence=True, # data set is already shuffled
+                                character_coverage=1,
+                                user_defined_symbols=special_tokens,
+                                )
+    # Record the end time on GPU
+    end_event.record()
+
+    # Wait for all kernels to finish (synchronize GPU)
+    torch.cuda.synchronize()
+
+    # Calculate and print the elapsed time in milliseconds
+    gpu_time = start_event.elapsed_time(end_event)  # Time in milliseconds
+    df.loc[df['pretrain size'] == size, 'tokeniser train time (GPU)'] = gpu_time
+    df.to_csv('pretrain_info.csv', index=False)
 
 
 
-# E.g., run with 
-# poetry run python train_tokenizer.py
+if __name__ == '__main__':
+    main()
+
