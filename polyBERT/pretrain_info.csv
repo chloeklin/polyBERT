@@ -1,4 +1,4 @@
-pretrain size,tokeniser train time (GPU),model train time (GPU)
+pretrain size,tokeniser train time (CPU),model train time (GPU)
 1M,0,0
 5M,0,0
 10M,0,0

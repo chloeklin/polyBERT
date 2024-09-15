@@ -30,7 +30,7 @@ config = DebertaV2Config(vocab_size=265,
                       pad_token_id=3
                       )
 
-model = DebertaV2ForMaskedLM(config=config)
+model = DebertaV2ForMaskedLM(config=config).to(device)
 
 # Resize token embedding to tokenizer
 model.resize_token_embeddings(len(tokenizer))

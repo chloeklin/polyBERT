@@ -1,4 +1,4 @@
-import torch
+import time
 import argparse
 import pandas as pd
 import sentencepiece as spm
@@ -42,8 +42,8 @@ def main():
     args = parser.parse_args()
     size=args.size
 
-    # Record the start time on GPU
-    start_event.record()
+    # Record the start time on CPU
+    start = time.process_time()
 
     spm.SentencePieceTrainer.train(input=f'{original_pretrain_file}_{size}.txt',
                                 model_prefix=f'spm_{size}',
@@ -53,15 +53,12 @@ def main():
                                 character_coverage=1,
                                 user_defined_symbols=special_tokens,
                                 )
-    # Record the end time on GPU
-    end_event.record()
-
-    # Wait for all kernels to finish (synchronize GPU)
-    torch.cuda.synchronize()
+    # Record the end time on CPU
+    end = time.process_time()
 
     # Calculate and print the elapsed time in milliseconds
-    gpu_time = start_event.elapsed_time(end_event)  # Time in milliseconds
-    df.loc[df['pretrain size'] == size, 'tokeniser train time (GPU)'] = gpu_time
+    cpu_time = end - start
+    df.loc[df['pretrain size'] == size, 'tokeniser train time (CPU)'] = cpu_time
     df.to_csv('pretrain_info.csv', index=False)
 
 
