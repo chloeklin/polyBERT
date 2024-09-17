@@ -10,3 +10,4 @@ generated_*.txt
 /finetune_data
 /multitask-venv/
 multitask*.txt
+/regression_data/
