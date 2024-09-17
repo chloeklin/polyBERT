@@ -12,3 +12,7 @@ spm.vocab_ref
 /venv/
 .DS_Store
 generated_*.txt
+/copolymer_informatics
+/finetune_data
+/multitask-venv/
+multitask*.txt
