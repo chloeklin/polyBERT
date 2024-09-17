@@ -40,7 +40,7 @@ def main():
     # Record the start time on CPU
     start = time.process_time()
 
-    spm.SentencePieceTrainer.train(input=f'{original_pretrain_file}_{size}.txt',
+    spm.SentencePieceTrainer.train(input=f'data/{original_pretrain_file}_{size}.txt',
                                 model_prefix=f'spm_{size}',
                                 vocab_size=265,
                                 input_sentence_size=5_000_000,
