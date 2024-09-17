@@ -24,7 +24,7 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     torch.cuda.is_available() #checking if CUDA + Colab GPU works
     
-    tokenizer = DebertaV2Tokenizer(f"./spm_{size}.model",f"./spm_{size}.vocab")
+    tokenizer = DebertaV2Tokenizer(f"spm_{size}.model",f"spm_{size}.vocab")
     logging.basicConfig(level=logging.INFO)
     
     config = DebertaV2Config(vocab_size=265, 
@@ -78,7 +78,7 @@ def main():
     df = pd.read_csv(file_path)
     
     start_event.record()
-    a = trainer.train(resume_from_checkpoint=True) #trainer.train() #
+    a = trainer.train(resume_from_checkpoint=False) #trainer.train() #
     end_event.record()
     torch.cuda.synchronize()
     gpu_time = start_event.elapsed_time(end_event)  # Time in milliseconds
