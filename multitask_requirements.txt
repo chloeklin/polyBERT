@@ -1,0 +1,11 @@
+pandas
+tensorflow
+matplotlib
+tensorflow-addons
+keras-tuner
+seaborn
+scikit-learn
+dask
+sentence-transformers
+tf-keras
+pyarrow
