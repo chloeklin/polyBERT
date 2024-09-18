@@ -81,7 +81,7 @@ def main():
     a = trainer.train(resume_from_checkpoint=False) #trainer.train() #
     end_event.record()
     torch.cuda.synchronize()
-    gpu_time = start_event.elapsed_time(end_event)  # Time in milliseconds
+    gpu_time = start_event.elapsed_time(end_event) / 1000  # Time in milliseconds
     df = df.astype(object)
     df.loc[df['pretrain size'] == size, 'model train time (GPU)'] = gpu_time
     df.to_csv('pretrain_info.csv', index=False)
