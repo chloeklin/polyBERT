@@ -3,7 +3,8 @@ import csv
 import torch
 import random
 from sklearn.metrics import f1_score
-from transformers import AutoTokenizer, AutoModel, AutoModelForMaskedLM, DebertaV2ForMaskedLM, DebertaV2Tokenizer
+from torch.utils.data import DataLoader, TensorDataset
+from transformers import DebertaV2ForMaskedLM, DebertaV2Tokenizer
 
 def create_masked_test_set(tokenizer, sentences, mask_prob=0.15):
     masked_sentences = []
@@ -23,7 +24,23 @@ def create_masked_test_set(tokenizer, sentences, mask_prob=0.15):
 
     return masked_sentences, ground_truth
 
-def evaluate(tokenizer, model, psmiles_strings, device):
+def write_row_to_csv(file_path, row):
+    # Check if the file exists
+    file_exists = os.path.isfile(file_path)
+
+    # Open the file in append mode. If it doesn't exist, 'a' will create it
+    with open(file_path, mode='a', newline='') as file:
+        writer = csv.writer(file)
+
+        # If the file doesn't exist, write the header first (optional)
+        if not file_exists:
+            header = ['Pretrain size', 'f1-score']  # Adjust according to your needs
+            writer.writerow(header)
+
+        # Write the new row
+        writer.writerow(row)
+
+def evaluate(tokenizer, model, psmiles_strings, device, batch_size=32):
     
     # Set the model to evaluation mode
     model.eval()
@@ -33,34 +50,41 @@ def evaluate(tokenizer, model, psmiles_strings, device):
     
     # Tokenize the sentences
     inputs = tokenizer(masked_psmiles, return_tensors='pt', padding=True)
-    inputs = inputs.to(device)
     
-    # Run inference to get predictions for masked tokens
-    with torch.no_grad():
-        outputs = model(**inputs)
-        predictions = outputs.logits
+    # Create a DataLoader to batch inputs
+    dataset = TensorDataset(inputs['input_ids'], inputs['attention_mask'])
+    dataloader = DataLoader(dataset, batch_size=batch_size)
     
-    # Get the predicted token IDs for the masked positions
-    masked_indices = (inputs.input_ids == tokenizer.mask_token_id).nonzero(as_tuple=True)
-    predicted_token_ids = predictions[masked_indices].argmax(dim=-1)
-    
-    # Convert predicted token IDs back to words
-    predicted_tokens = tokenizer.convert_ids_to_tokens(predicted_token_ids)
-    
-    # Convert true tokens to token IDs
-    true_token_ids = tokenizer.convert_tokens_to_ids(ground_truth)
-    
+    all_predicted_token_ids = []
+    all_true_token_ids = tokenizer.convert_tokens_to_ids(ground_truth)
+    for batch in dataloader:
+        input_ids, attention_mask = batch
+        input_ids, attention_mask = input_ids.to(device), attention_mask.to(device)
+        
+        # Run inference to get predictions for masked tokens
+        with torch.no_grad():
+            outputs = model(input_ids=input_ids, attention_mask=attention_mask)
+            predictions = outputs.logits
+
+        # Get the predicted token IDs for the masked positions
+        masked_indices = (input_ids == tokenizer.mask_token_id).nonzero(as_tuple=True)
+        predicted_token_ids = predictions[masked_indices].argmax(dim=-1)
+        
+        # Collect all predicted token IDs
+        all_predicted_token_ids.extend(predicted_token_ids.cpu().numpy())
+
     # Compute F1 score (using token IDs for comparison)
-    f1 = f1_score(true_token_ids, predicted_token_ids.cpu().numpy(), average='micro')
+    f1 = f1_score(all_true_token_ids, all_predicted_token_ids, average='micro')
     
     return f1
 
 
 
-size = '1M'
+
 
 # Load test dataset
 file_path = 'data/generated_polymer_smiles_dev.txt'
+csv_file = "masking_evaluation.csv"
 
 with open(file_path, 'r') as file:
     psmiles_strings = [line.strip() for line in file]
@@ -68,28 +92,19 @@ with open(file_path, 'r') as file:
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # Load tokenizer and model
-tokenizer = DebertaV2Tokenizer.from_pretrained('original_tok')
-model = DebertaV2ForMaskedLM.from_pretrained('original_model').to(device)
-f1_original = evaluate(tokenizer, model, psmiles_strings, device)
-
+size = '1M'
 tokenizer = DebertaV2Tokenizer(f"spm_{size}.model",f"spm_{size}.vocab")
 model = DebertaV2ForMaskedLM.from_pretrained(f'model_{size}_final/').to(device)
 f1_1M = evaluate(tokenizer, model, psmiles_strings, device)
+write_row_to_csv(csv_file, [size,f1_1M])
 
-print(f1_original, f1_1M)
+size = '5M'
+tokenizer = DebertaV2Tokenizer(f"spm_{size}.model",f"spm_{size}.vocab")
+model = DebertaV2ForMaskedLM.from_pretrained(f'model_{size}_final/').to(device)
+f1_5M = evaluate(tokenizer, model, psmiles_strings, device)
+write_row_to_csv(csv_file, [size,f1_5M])
 
-result = {
-    'pretrain size': ['90M (original)', '1M'],
-    'f1 score': [f1_original, f1_1M]
-}
-csv_file = "masking_evaluation.csv"
-
-# Writing to the CSV file
-with open(csv_file, mode='w', newline='') as file:
-    writer = csv.DictWriter(file, fieldnames=data.keys())
-    
-    # Write headers
-    writer.writeheader()
-    # Write rows by zipping the lists in the dictionary
-    for row in zip(*data.values()):
-        writer.writerow(dict(zip(data.keys(), row)))
+tokenizer = DebertaV2Tokenizer.from_pretrained('original_tok')
+model = DebertaV2ForMaskedLM.from_pretrained('original_model').to(device)
+f1_original = evaluate(tokenizer, model, psmiles_strings, device)
+write_row_to_csv(csv_file, ['original(90M)',f1_original])
