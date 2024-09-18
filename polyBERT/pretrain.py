@@ -12,9 +12,11 @@ def main():
 
     # Define the command-line arguments
     parser.add_argument('--size', type=str, help='Pretraining size')
+    parser.add_argument('--ngpus', type=str, help='Number of GPUs')
     # Parse the arguments
     args = parser.parse_args()
     size=args.size
+    ngpus=args.ngpus
     
     """Pretraining time"""
     start_event = torch.cuda.Event(enable_timing=True)
@@ -83,7 +85,7 @@ def main():
     torch.cuda.synchronize()
     gpu_time = start_event.elapsed_time(end_event) / 1000  # Time in milliseconds
     df = df.astype(object)
-    df.loc[df['pretrain size'] == size, 'model train time (GPU)'] = gpu_time
+    df.loc[df['pretrain size'] == size, f'model train time ({ngpus} GPUs)'] = gpu_time
     df.to_csv('pretrain_info.csv', index=False)
     
     trainer.save_model(f"./model_{size}_final/")
