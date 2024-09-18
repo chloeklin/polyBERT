@@ -2,6 +2,8 @@ polyBERT/*/
 polyBERT/model*/
 polyBERT/data/
 polyBERT/dataset*/
+polyBERT/trained_regression/
+polyBERT/figs/*
 *.sh
 *.sh.*
 
