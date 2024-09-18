@@ -1,3 +1,4 @@
+polyBERT/*/
 polyBERT/model*/
 polyBERT/data/
 polyBERT/dataset*/
@@ -16,4 +17,7 @@ generated_*.txt
 /finetune_data
 /multitask-venv/
 multitask*.txt
+<<<<<<< HEAD
 /regression_data/
+=======
+>>>>>>> cdddeab7aa1d1c13081cc59fd9c7538fdb318339
