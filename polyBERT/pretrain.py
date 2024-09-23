@@ -3,8 +3,11 @@ import argparse
 import logging
 import pandas as pd
 from datasets import Dataset
+from torch.nn import DataParallel
 from transformers import DebertaV2Config, DebertaV2ForMaskedLM, DebertaV2Tokenizer, DataCollatorForLanguageModeling, Trainer, TrainingArguments
-import lightning
+
+def get_unwrapped_model(model):
+    return model.module if hasattr(model, 'module') else model
 
 def main():
     # Create an ArgumentParser object
@@ -15,8 +18,8 @@ def main():
     parser.add_argument('--ngpus', type=str, help='Number of GPUs')
     # Parse the arguments
     args = parser.parse_args()
-    size=args.size
-    ngpus=args.ngpus
+    size= args.size
+    ngpus= args.ngpus
     
     """Pretraining time"""
     start_event = torch.cuda.Event(enable_timing=True)
@@ -38,9 +41,14 @@ def main():
                           )
     
     model = DebertaV2ForMaskedLM(config=config).to(device)
-    
     # Resize token embedding to tokenizer
     model.resize_token_embeddings(len(tokenizer))
+    print("done")
+    # model = DataParallel(model)
+    
+    
+
+
     
     dataset_train = Dataset.load_from_disk(f"data/tokenized_{size}/train")
     dataset_test = Dataset.load_from_disk(f"data/tokenized_{size}/test")
@@ -59,11 +67,12 @@ def main():
         num_train_epochs=2,
         per_device_train_batch_size=30,
         per_device_eval_batch_size=30,
-        save_steps=5_000,
+        save_steps=1_000, #5000
         save_total_limit=1,
         fp16=True,
         logging_steps=1_000,
         prediction_loss_only=True,
+        deepspeed = "deepspeed_config.json"
         # disable_tqdm=True,
     )
     
@@ -85,7 +94,7 @@ def main():
     torch.cuda.synchronize()
     gpu_time = start_event.elapsed_time(end_event) / 1000  # Time in milliseconds
     df = df.astype(object)
-    df.loc[df['pretrain size'] == size, f'model train time ({ngpus} GPUs)'] = gpu_time
+    df.loc[df['pretrain size'] == size, f'model train time ({ngpus} GPUs) [ds]'] = gpu_time
     df.to_csv('pretrain_info.csv', index=False)
     
     trainer.save_model(f"./model_{size}_final/")
