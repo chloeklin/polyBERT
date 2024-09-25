@@ -5,6 +5,7 @@ import pandas as pd
 from datasets import Dataset
 from torch.nn import DataParallel
 from transformers import DebertaV2Config, DebertaV2ForMaskedLM, DebertaV2Tokenizer, DataCollatorForLanguageModeling, Trainer, TrainingArguments
+import lightning as L
 
 def get_unwrapped_model(model):
     return model.module if hasattr(model, 'module') else model
@@ -18,8 +19,8 @@ def main():
     parser.add_argument('--ngpus', type=str, help='Number of GPUs')
     # Parse the arguments
     args = parser.parse_args()
-    size= args.size
-    ngpus= args.ngpus
+    size=args.size
+    ngpus=args.ngpus
     
     """Pretraining time"""
     start_event = torch.cuda.Event(enable_timing=True)
@@ -41,6 +42,7 @@ def main():
                           )
     
     model = DebertaV2ForMaskedLM(config=config).to(device)
+    
     # Resize token embedding to tokenizer
     model.resize_token_embeddings(len(tokenizer))
     print("done")
@@ -60,6 +62,7 @@ def main():
     data_collator = DataCollatorForLanguageModeling(
         tokenizer=tokenizer, mlm=True, mlm_probability=0.15
     )
+
     
     training_args = TrainingArguments(
         output_dir=f"./model_{size}/",
