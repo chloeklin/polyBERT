@@ -40,7 +40,7 @@ def write_row_to_csv(file_path, row):
         # Write the new row
         writer.writerow(row)
 
-def evaluate(tokenizer, model, psmiles_strings, device, batch_size=32):
+def evaluate(tokenizer, model, psmiles_strings, device, batch_size=64):
     
     # Set the model to evaluation mode
     model.eval()
@@ -98,13 +98,13 @@ model = DebertaV2ForMaskedLM.from_pretrained(f'model_{size}_final/').to(device)
 f1_1M = evaluate(tokenizer, model, psmiles_strings, device)
 write_row_to_csv(csv_file, [size,f1_1M])
 
-size = '5M'
-tokenizer = DebertaV2Tokenizer(f"spm_{size}.model",f"spm_{size}.vocab")
-model = DebertaV2ForMaskedLM.from_pretrained(f'model_{size}_final/').to(device)
-f1_5M = evaluate(tokenizer, model, psmiles_strings, device)
-write_row_to_csv(csv_file, [size,f1_5M])
+# size = '5M'
+# tokenizer = DebertaV2Tokenizer(f"spm_{size}.model",f"spm_{size}.vocab")
+# model = DebertaV2ForMaskedLM.from_pretrained(f'model_{size}_final/').to(device)
+# f1_5M = evaluate(tokenizer, model, psmiles_strings, device)
+# write_row_to_csv(csv_file, [size,f1_5M])
 
-tokenizer = DebertaV2Tokenizer.from_pretrained('original_tok')
-model = DebertaV2ForMaskedLM.from_pretrained('original_model').to(device)
-f1_original = evaluate(tokenizer, model, psmiles_strings, device)
-write_row_to_csv(csv_file, ['original(90M)',f1_original])
+# tokenizer = DebertaV2Tokenizer.from_pretrained('original_tok')
+# model = DebertaV2ForMaskedLM.from_pretrained('original_model').to(device)
+# f1_original = evaluate(tokenizer, model, psmiles_strings, device)
+# write_row_to_csv(csv_file, ['original(90M)',f1_original])

@@ -28,7 +28,8 @@ def main():
     """Device"""
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     torch.cuda.is_available() #checking if CUDA + Colab GPU works
-    
+
+    """ Tokeniser"""
     tokenizer = DebertaV2Tokenizer(f"spm_{size}.model",f"spm_{size}.vocab")
     logging.basicConfig(level=logging.INFO)
     
@@ -39,28 +40,25 @@ def main():
                           intermediate_size=512,
                           pad_token_id=3
                           )
-    
+
+    """ Model"""
     model = DebertaV2ForMaskedLM(config=config).to(device)
     # Resize token embedding to tokenizer
     model.resize_token_embeddings(len(tokenizer))
-    print("done")
-    # model = DataParallel(model)
-    
-    
 
 
-    
+    """Dataset"""
     dataset_train = Dataset.load_from_disk(f"data/tokenized_{size}/train")
     dataset_test = Dataset.load_from_disk(f"data/tokenized_{size}/test")
     
     dataset_train.set_format(type='torch', columns=['input_ids'])
     dataset_test.set_format(type='torch', columns=['input_ids'])
-    
-    
+        
     data_collator = DataCollatorForLanguageModeling(
         tokenizer=tokenizer, mlm=True, mlm_probability=0.15
     )
-    
+
+    """Trainer"""
     training_args = TrainingArguments(
         output_dir=f"./model_{size}/",
         overwrite_output_dir=True,
@@ -83,7 +81,8 @@ def main():
         train_dataset=dataset_train,
         eval_dataset=dataset_test,
     )
-    
+
+    """Training"""
     # read pretrain file
     file_path = 'pretrain_info.csv'
     df = pd.read_csv(file_path)

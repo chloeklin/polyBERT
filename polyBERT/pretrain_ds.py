@@ -7,6 +7,8 @@ from transformers import DebertaV2Config, DebertaV2ForMaskedLM, DebertaV2Tokeniz
 import lightning as L
 from torch.utils.data import DataLoader
 from lightning.pytorch import Trainer, seed_everything
+from lightning.pytorch.strategies import DeepSpeedStrategy
+
 
 
 
@@ -15,7 +17,7 @@ class DebertaMLM(L.LightningModule):
         super().__init__()
         self.tokeniser = tokeniser
         self.model = DebertaV2ForMaskedLM(config=config)
-        self.model.resize_token_embeddings(len(self.tokenizer))
+        self.model.resize_token_embeddings(len(tokeniser))
         self.data_collator = DataCollatorForLanguageModeling(
             tokenizer=tokeniser, mlm=True, mlm_probability=0.15
         )
@@ -65,6 +67,7 @@ def main():
     """Tokeniser"""
     tokeniser = DebertaV2Tokenizer(f"spm_{size}.model",f"spm_{size}.vocab")
     logging.basicConfig(level=logging.INFO)
+    logging.info('Init tokeniser')
 
     """Model"""
     # Configuration for the DeBERTa model
@@ -78,6 +81,7 @@ def main():
     )
         
     model = DebertaMLM(config,tokeniser)
+    logging.info('Init model')
 
     """Dataset"""
     dataset_train = Dataset.load_from_disk(f"data/tokenized_{size}/train")
@@ -92,6 +96,7 @@ def main():
 
     train_loader = DataLoader(dataset_train, batch_size=30, shuffle=True, collate_fn=data_collator)
     test_loader = DataLoader(dataset_test, batch_size=30, shuffle=False, collate_fn=data_collator)
+    logging.info('Setup datasets')
     
     """Train model"""
     trainer = Trainer(deterministic=True,
@@ -103,7 +108,8 @@ def main():
                       precision=16,
                       log_every_n_steps=1_000,
                       callbacks=[ModelCheckpoint(dirpath=f"./model_{size}/", save_top_k=1, save_last=True, monitor="val_loss", every_n_train_steps=5_000)]
-)
+    )
+    logging.info('Init trainer')
     
 
     
