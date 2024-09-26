@@ -4,6 +4,7 @@ import torch
 import random
 import deepspeed
 import lightning as L
+from lightning.pytorch import Trainer
 from sklearn.metrics import f1_score
 from torch.utils.data import DataLoader, TensorDataset
 from transformers import DebertaV2ForMaskedLM, DebertaV2Tokenizer
@@ -74,7 +75,7 @@ def evaluate(model, tokeniser, psmiles_strings, batch_size=64):
     masked_psmiles, ground_truth = create_masked_test_set(tokeniser,psmiles_strings)
     
     # Tokenize the sentences
-    inputs = tokenizer(masked_psmiles, return_tensors='pt', padding=True)
+    inputs = tokeniser(masked_psmiles, return_tensors='pt', padding=True)
     
     # Create a DataLoader to batch inputs
     dataset = TensorDataset(inputs['input_ids'], inputs['attention_mask'])
@@ -101,23 +102,21 @@ csv_file = "masking_evaluation.csv"
 
 with open(file_path, 'r') as file:
     psmiles_strings = [line.strip() for line in file]
-# Check GPU availability
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # Load tokenizer and model
 size = '1M'
-tokenizer = DebertaV2Tokenizer(f"spm_{size}.model",f"spm_{size}.vocab")
-model = DebertaV2ForMaskedLM.from_pretrained(f'model_{size}_final/').to(device)
-f1_1M = evaluate(tokenizer, model, psmiles_strings, device)
+tokeniser = DebertaV2Tokenizer(f"spm_{size}.model",f"spm_{size}.vocab")
+model = DebertaV2ForMaskedLM.from_pretrained(f'model_{size}_final/')
+f1_1M = evaluate(model, tokeniser, psmiles_strings)
 write_row_to_csv(csv_file, [size,f1_1M])
 
 size = '5M'
-tokenizer = DebertaV2Tokenizer(f"spm_{size}.model",f"spm_{size}.vocab")
-model = DebertaV2ForMaskedLM.from_pretrained(f'model_{size}_final/').to(device)
-f1_5M = evaluate(tokenizer, model, psmiles_strings, device)
+tokeniser = DebertaV2Tokenizer(f"spm_{size}.model",f"spm_{size}.vocab")
+model = DebertaV2ForMaskedLM.from_pretrained(f'model_{size}_final/')
+f1_5M = evaluate(model, tokeniser, psmiles_strings)
 write_row_to_csv(csv_file, [size,f1_5M])
 
-tokenizer = DebertaV2Tokenizer.from_pretrained('original_tok')
-model = DebertaV2ForMaskedLM.from_pretrained('original_model').to(device)
-f1_original = evaluate(tokenizer, model, psmiles_strings, device)
+tokeniser = DebertaV2Tokenizer.from_pretrained('original_tok')
+model = DebertaV2ForMaskedLM.from_pretrained('original_model')
+f1_original = evaluate(model, tokeniser, psmiles_strings)
 write_row_to_csv(csv_file, ['original(90M)',f1_original])
