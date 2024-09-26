@@ -127,23 +127,25 @@ def evaluate(model, tokeniser, psmiles_strings, batch_size=64):
 # file_path = 'data/generated_polymer_smiles_dev.txt'
 # csv_file = "masking_evaluation.csv"
 
-# with open(file_path, 'r') as file:
-#     psmiles_strings = [line.strip() for line in file]
 
-# # Load tokenizer and model
-# size = '1M'
-# tokeniser = DebertaV2Tokenizer(f"spm_{size}.model",f"spm_{size}.vocab")
-# model = DebertaV2ForMaskedLM.from_pretrained(f'model_{size}_final/')
-# f1_1M = evaluate(model, tokeniser, psmiles_strings)
-# write_row_to_csv(csv_file, [size,f1_1M])
+with open(file_path, 'r') as file:
+    psmiles_strings = [line.strip() for line in file]
 
-# size = '5M'
-# tokeniser = DebertaV2Tokenizer(f"spm_{size}.model",f"spm_{size}.vocab")
-# model = DebertaV2ForMaskedLM.from_pretrained(f'model_{size}_final/')
-# f1_5M = evaluate(model, tokeniser, psmiles_strings)
-# write_row_to_csv(csv_file, [size,f1_5M])
+# Load tokenizer and model
+size = '1M'
+tokeniser = DebertaV2Tokenizer(f"spm_{size}.model",f"spm_{size}.vocab")
+model = DebertaV2ForMaskedLM.from_pretrained(f'model_{size}_final/')
+f1_1M = evaluate(model, tokeniser, psmiles_strings)
+write_row_to_csv(csv_file, [size,f1_1M])
 
-# tokeniser = DebertaV2Tokenizer.from_pretrained('original_tok')
-# model = DebertaV2ForMaskedLM.from_pretrained('original_model')
-# f1_original = evaluate(model, tokeniser, psmiles_strings)
-# write_row_to_csv(csv_file, ['original(90M)',f1_original])
+size = '5M'
+tokeniser = DebertaV2Tokenizer(f"spm_{size}.model",f"spm_{size}.vocab")
+model = DebertaV2ForMaskedLM.from_pretrained(f'model_{size}_final/')
+f1_5M = evaluate(model, tokeniser, psmiles_strings)
+write_row_to_csv(csv_file, [size,f1_5M])
+
+tokeniser = DebertaV2Tokenizer.from_pretrained('original_tok')
+model = DebertaV2ForMaskedLM.from_pretrained('original_model')
+f1_original = evaluate(model, tokeniser, psmiles_strings)
+write_row_to_csv(csv_file, ['original(90M)',f1_original])
+
