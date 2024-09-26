@@ -1,13 +1,13 @@
-import logging
-import argparse
-import pandas as pd
 import torch
+import argparse
+import logging
+import pandas as pd
 from datasets import Dataset
+from deepspeed.ops.adam import DeepSpeedCPUAdam
 from transformers import DebertaV2Config, DebertaV2ForMaskedLM, DebertaV2Tokenizer, DataCollatorForLanguageModeling, Trainer, TrainingArguments
-from torch.utils.data import DataLoader
 import lightning as L
+from torch.utils.data import DataLoader
 from lightning.pytorch import Trainer, seed_everything
-from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.strategies import DeepSpeedStrategy
 
 
@@ -37,6 +37,10 @@ class DebertaMLM(L.LightningModule):
         val_loss = outputs.loss
         return val_loss
 
+    def configure_optimizers(self):
+        # Use AdamW optimizer
+        optimizer = DeepSpeedCPUAdam(self.parameters(), lr=5e-5)
+        return optimizer
     
 
 def main():
@@ -106,6 +110,7 @@ def main():
                       log_every_n_steps=1_000,
                       callbacks=[ModelCheckpoint(dirpath=f"./model_{size}/", save_top_k=1, save_last=True, monitor="val_loss", every_n_train_steps=5_000)]
     )
+    # trainer.strategy.config["zero_force_ds_cpu_optimizer"] = False #turn this off
     logging.info('Init trainer')
     
 
@@ -120,7 +125,7 @@ def main():
     torch.cuda.synchronize()
     gpu_time = start_event.elapsed_time(end_event) / 1000  # Time in milliseconds
     df = df.astype(object)
-    df.loc[df['pretrain size'] == size, f'model train time ({ngpus} GPUs) [ds]'] = gpu_time
+    df.loc[df['pretrain size'] == size, f'model train time ({ngpus} GPUs)'] = gpu_time
     df.to_csv('pretrain_info.csv', index=False)
     
     # trainer.save_model(f"./model_{size}_final/")
