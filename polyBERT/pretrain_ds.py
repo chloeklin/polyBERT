@@ -36,10 +36,6 @@ class DebertaMLM(L.LightningModule):
         val_loss = outputs.loss
         return val_loss
 
-    def configure_optimizers(self):
-        # Use AdamW optimizer with weight decay
-        optimizer = torch.optim.AdamW(self.parameters(), lr=5e-5)
-        return optimizer
     
 
 def main():
