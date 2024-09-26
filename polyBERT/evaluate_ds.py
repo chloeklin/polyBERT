@@ -44,7 +44,34 @@ def write_row_to_csv(file_path, row):
         # Write the new row
         writer.writerow(row)
 
+class DebertaMLM(L.LightningModule):
+    def __init__(self, model_path, tokeniser):
+        super().__init__()
+        self.tokeniser = tokeniser
+        self.model = DebertaV2ForMaskedLM.from_pretrain(model_path)
+        self.data_collator = DataCollatorForLanguageModeling(
+            tokenizer=tokeniser, mlm=True, mlm_probability=0.15
+        )
+        self.save_hyperparameters()
 
+    def forward(self, input_ids, attention_mask=None, labels=None):
+        return self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
+
+    def training_step(self, batch, batch_idx):
+        outputs = self.model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'])
+        loss = outputs.loss
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        outputs = self.model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'])
+        val_loss = outputs.loss
+        return val_loss
+
+    def configure_optimizers(self):
+        # Use AdamW optimizer with weight decay
+        optimizer = torch.optim.AdamW(self.parameters(), lr=5e-5)
+        return optimizer
+        
 class polyBERT(L.LightningModule):
     def __init__(self, model, tokeniser):
         super().__init__()
@@ -96,9 +123,10 @@ def evaluate(model, tokeniser, psmiles_strings, batch_size=64):
 
 
 
-# Load test dataset
-file_path = 'data/generated_polymer_smiles_dev.txt'
-csv_file = "masking_evaluation.csv"
+# # Load test dataset
+# file_path = 'data/generated_polymer_smiles_dev.txt'
+# csv_file = "masking_evaluation.csv"
+
 
 with open(file_path, 'r') as file:
     psmiles_strings = [line.strip() for line in file]
@@ -120,3 +148,4 @@ tokeniser = DebertaV2Tokenizer.from_pretrained('original_tok')
 model = DebertaV2ForMaskedLM.from_pretrained('original_model')
 f1_original = evaluate(model, tokeniser, psmiles_strings)
 write_row_to_csv(csv_file, ['original(90M)',f1_original])
+
