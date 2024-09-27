@@ -1,14 +1,18 @@
+"""Utility packages"""
 import torch
 import argparse
 import logging
 import pandas as pd
+"""Model setup"""
 from datasets import Dataset
-from deepspeed.ops.adam import DeepSpeedCPUAdam
-from transformers import DebertaV2Config, DebertaV2ForMaskedLM, DebertaV2Tokenizer, DataCollatorForLanguageModeling, Trainer, TrainingArguments
-import lightning as L
 from torch.utils.data import DataLoader
+from transformers import DebertaV2Config, DebertaV2ForMaskedLM, DebertaV2Tokenizer, DataCollatorForLanguageModeling, Trainer, TrainingArguments
+"""Deepspeed"""
+import lightning as L
 from lightning.pytorch import Trainer, seed_everything
+from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.strategies import DeepSpeedStrategy
+from deepspeed.ops.adam import DeepSpeedCPUAdam
 
 
 
@@ -28,12 +32,12 @@ class DebertaMLM(L.LightningModule):
         return self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
 
     def training_step(self, batch, batch_idx):
-        outputs = self.model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'])
+        outputs = self.model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'], labels=batch['labels'])
         loss = outputs.loss
         return loss
 
     def validation_step(self, batch, batch_idx):
-        outputs = self.model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'])
+        outputs = self.model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'], labels=batch['labels'])
         val_loss = outputs.loss
         return val_loss
 
@@ -48,7 +52,7 @@ def main():
     parser = argparse.ArgumentParser()
     # Define the command-line arguments
     parser.add_argument('--size', type=str, help='Pretraining size')
-    parser.add_argument('--ngpus', type=str, help='Number of GPUs')
+    parser.add_argument('--ngpus', type=int, help='Number of GPUs')
     # Parse the arguments
     args = parser.parse_args()
     size=args.size
