@@ -1,15 +1,22 @@
+"""Utility packages"""
 import torch
 import argparse
 import logging
 import pandas as pd
+"""Model setup"""
 from datasets import Dataset
 from deepspeed.ops.adam import DeepSpeedCPUAdam
 from transformers import DebertaV2Config, DebertaV2ForMaskedLM, DebertaV2Tokenizer, DataCollatorForLanguageModeling, Trainer, TrainingArguments
 import lightning as L
 from lightning.pytorch.callbacks import ModelCheckpoint
 from torch.utils.data import DataLoader
+from transformers import DebertaV2Config, DebertaV2ForMaskedLM, DebertaV2Tokenizer, DataCollatorForLanguageModeling, Trainer, TrainingArguments
+"""Deepspeed"""
+import lightning as L
 from lightning.pytorch import Trainer, seed_everything
+from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.strategies import DeepSpeedStrategy
+from deepspeed.ops.adam import DeepSpeedCPUAdam
 
 
 
@@ -126,7 +133,7 @@ def main():
     torch.cuda.synchronize()
     gpu_time = start_event.elapsed_time(end_event) / 1000  # Time in milliseconds
     df = df.astype(object)
-    df.loc[df['pretrain size'] == size, f'model train time ({ngpus} GPUs)'] = gpu_time
+    df.loc[df['pretrain size'] == size, f'model train time ({ngpus} GPUs) [ds]'] = gpu_time
     df.to_csv('pretrain_info.csv', index=False)
     
     # trainer.save_model(f"./model_{size}_final/")

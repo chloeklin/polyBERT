@@ -1,13 +1,18 @@
+"""Utility packages"""
 import os
 import csv
-import torch
 import random
-import deepspeed
-import lightning as L
-from lightning.pytorch import Trainer
-from sklearn.metrics import f1_score
+import argparse
+"""Model setup"""
 from torch.utils.data import DataLoader, TensorDataset
-from transformers import DebertaV2ForMaskedLM, DebertaV2Tokenizer
+from transformers import DebertaV2ForMaskedLM, DebertaV2Tokenizer, DataCollatorForLanguageModeling, Trainer, TrainingArguments
+"""Evaluation"""
+from sklearn.metrics import f1_score
+"""Deepspeed"""
+import lightning as L
+from deepspeed.ops.adam import DeepSpeedCPUAdam
+from lightning.pytorch import Trainer, seed_everything
+from lightning.pytorch.strategies import DeepSpeedStrategy
 
 
 def create_masked_test_set(tokenizer, sentences, mask_prob=0.15):
@@ -44,11 +49,12 @@ def write_row_to_csv(file_path, row):
         # Write the new row
         writer.writerow(row)
 
-class DebertaMLM(L.LightningModule):
-    def __init__(self, model_path, tokeniser):
+class polyBERT(L.LightningModule):
+    def __init__(self, config, tokeniser):
         super().__init__()
         self.tokeniser = tokeniser
-        self.model = DebertaV2ForMaskedLM.from_pretrain(model_path)
+        self.model = DebertaV2ForMaskedLM(config=config)
+        self.model.resize_token_embeddings(len(tokeniser))
         self.data_collator = DataCollatorForLanguageModeling(
             tokenizer=tokeniser, mlm=True, mlm_probability=0.15
         )
@@ -58,45 +64,37 @@ class DebertaMLM(L.LightningModule):
         return self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
 
     def training_step(self, batch, batch_idx):
-        outputs = self.model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'])
+        outputs = self.model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'], labels=batch['labels'])
         loss = outputs.loss
         return loss
 
     def validation_step(self, batch, batch_idx):
-        outputs = self.model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'])
+        outputs = self.model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'], labels=batch['labels'])
         val_loss = outputs.loss
         return val_loss
 
     def configure_optimizers(self):
-        # Use AdamW optimizer with weight decay
-        optimizer = torch.optim.AdamW(self.parameters(), lr=5e-5)
+        # Use AdamW optimizer
+        optimizer = DeepSpeedCPUAdam(self.parameters(), lr=5e-5)
         return optimizer
-        
-class polyBERT(L.LightningModule):
-    def __init__(self, model, tokeniser):
-        super().__init__()
-        self.model = model
-        self.tokeniser = tokeniser
-        
-
-    def predict_step(self, batch, batch_idx):
-        input_ids, attention_mask = batch
-        
+    
+    def predict_step(self, batch, batch_idx):        
         # Run inference to get predictions for masked tokens
-        outputs = self.model(input_ids=input_ids, attention_mask=attention_mask)
+        outputs = self.model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'])
         predictions = outputs.logits
 
         # Get the predicted token IDs for the masked positions
-        masked_indices = (input_ids == self.tokeniser.mask_token_id).nonzero(as_tuple=True)
+        masked_indices = (batch['input_ids'] == self.tokeniser.mask_token_id).nonzero(as_tuple=True)
         predicted_token_ids = predictions[masked_indices].argmax(dim=-1)
         
         # Return predicted token IDs
         return predicted_token_ids.cpu().numpy()
-
-def evaluate(model, tokeniser, psmiles_strings, batch_size=64):
     
-    # Init model
-    model = polyBERT(model, tokeniser)
+
+def evaluate(size, psmiles_strings, batch_size, ngpus, csv_file):
+    # Init tokeniser and model
+    tokeniser = DebertaV2Tokenizer(f"spm_{size}.model",f"spm_{size}.vocab")
+    model = polyBERT.load_from_checkpoint(f"./model_{size}.ckpt")
     
     # Mask 15% of tokens of each string in test data
     masked_psmiles, ground_truth = create_masked_test_set(tokeniser,psmiles_strings)
@@ -111,41 +109,58 @@ def evaluate(model, tokeniser, psmiles_strings, batch_size=64):
     all_predicted_token_ids = []
     all_true_token_ids = tokeniser.convert_tokens_to_ids(ground_truth)
     
-    trainer = Trainer()
+    trainer = Trainer(deterministic=True,
+                      accelerator='gpu',
+                      devices=ngpus,
+                      strategy=DeepSpeedStrategy(config="zero3_config.json"),
+                      precision=16)
     predictions = trainer.predict(model, dataloader)
+
+    # Concatenate predictions
+    for batch_predictions in predictions:
+        all_predicted_token_ids.append(batch_predictions)
 
     # Compute F1 score (using token IDs for comparison)
     f1 = f1_score(all_true_token_ids, all_predicted_token_ids, average='micro')
+
+    write_row_to_csv(csv_file, [size,f1])
+
+
+
+
+def main():
+    # Create an ArgumentParser object
+    parser = argparse.ArgumentParser()
+    # Define the command-line arguments
+    parser.add_argument('--size', type=str, help='Pretraining size')
+    parser.add_argument('--ngpus', type=int, help='Number of GPUs')
+    parser.add_argument('--batch', type=int, default=64, help='Batch size')
+
+    # Parse the arguments
+    args = parser.parse_args()
+    size=args.size
+    ngpus=args.ngpus
+    batch=args.batch
     
-    return f1
+    # sets seeds for numpy, torch and python.random.
+    seed_everything(1, workers=True)
+
+    # Load test dataset
+    file_path = 'data/generated_polymer_smiles_dev.txt'
+    csv_file = "masking_evaluation.csv"
 
 
+    with open(file_path, 'r') as file:
+        psmiles_strings = [line.strip() for line in file]
+
+    # Load tokenizer and model
+    evaluate(size, psmiles_strings, batch, ngpus, csv_file)
 
 
+    # tokeniser = DebertaV2Tokenizer.from_pretrained('original_tok')
+    # model = DebertaV2ForMaskedLM.from_pretrained('original_model')
+    # f1_original = evaluate(model, tokeniser, psmiles_strings)
+    # write_row_to_csv(csv_file, ['original(90M)',f1_original])
 
-# # Load test dataset
-# file_path = 'data/generated_polymer_smiles_dev.txt'
-# csv_file = "masking_evaluation.csv"
-
-
-with open(file_path, 'r') as file:
-    psmiles_strings = [line.strip() for line in file]
-
-# Load tokenizer and model
-size = '1M'
-tokeniser = DebertaV2Tokenizer(f"spm_{size}.model",f"spm_{size}.vocab")
-model = DebertaV2ForMaskedLM.from_pretrained(f'model_{size}_final/')
-f1_1M = evaluate(model, tokeniser, psmiles_strings)
-write_row_to_csv(csv_file, [size,f1_1M])
-
-size = '5M'
-tokeniser = DebertaV2Tokenizer(f"spm_{size}.model",f"spm_{size}.vocab")
-model = DebertaV2ForMaskedLM.from_pretrained(f'model_{size}_final/')
-f1_5M = evaluate(model, tokeniser, psmiles_strings)
-write_row_to_csv(csv_file, [size,f1_5M])
-
-tokeniser = DebertaV2Tokenizer.from_pretrained('original_tok')
-model = DebertaV2ForMaskedLM.from_pretrained('original_model')
-f1_original = evaluate(model, tokeniser, psmiles_strings)
-write_row_to_csv(csv_file, ['original(90M)',f1_original])
-
+if __name__ == '__main__':
+    main()
