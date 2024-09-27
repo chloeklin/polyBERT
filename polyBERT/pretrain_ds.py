@@ -1,4 +1,5 @@
 """Utility packages"""
+import time
 import torch
 import argparse
 import logging
@@ -10,12 +11,20 @@ from transformers import DebertaV2Config, DebertaV2ForMaskedLM, DebertaV2Tokeniz
 """Deepspeed"""
 import lightning as L
 from lightning.pytorch import Trainer, seed_everything
-from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.callbacks import ModelCheckpoint, Callback
 from lightning.pytorch.strategies import DeepSpeedStrategy
 from deepspeed.ops.adam import DeepSpeedCPUAdam
 
 
+class TimingCallback(Callback):
+    def on_train_start(self, trainer, pl_module):
+        self.start_time = time.time()
+        print("Training started...")
 
+    def on_train_end(self, trainer, pl_module):
+        end_time = time.time()
+        elapsed_time = end_time - self.start_time
+        print(f"Training completed in {elapsed_time:.2f} seconds")
 
 class DebertaMLM(L.LightningModule):
     def __init__(self, config, tokeniser):
@@ -34,11 +43,14 @@ class DebertaMLM(L.LightningModule):
     def training_step(self, batch, batch_idx):
         outputs = self.model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'], labels=batch['labels'])
         loss = outputs.loss
+        self.log('train_loss', loss, on_step=False, on_epoch=True, prog_bar=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
         outputs = self.model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'], labels=batch['labels'])
         val_loss = outputs.loss
+        # Log the validation loss
+        self.log('val_loss', val_loss, on_step=False, on_epoch=True, prog_bar=True)
         return val_loss
 
     def configure_optimizers(self):
@@ -62,12 +74,8 @@ def main():
     seed_everything(1, workers=True)
 
     """Pretraining time"""
-    start_event = torch.cuda.Event(enable_timing=True)
-    end_event = torch.cuda.Event(enable_timing=True)
-    
-    """Device"""
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    torch.cuda.is_available() #checking if CUDA + Colab GPU works
+    # start_event = torch.cuda.Event(enable_timing=True)
+    # end_event = torch.cuda.Event(enable_timing=True)
     
     """Tokeniser"""
     tokeniser = DebertaV2Tokenizer(f"spm_{size}.model",f"spm_{size}.vocab")
@@ -104,6 +112,7 @@ def main():
     logging.info('Setup datasets')
     
     """Train model"""
+    timing_callback = TimingCallback()
     trainer = Trainer(deterministic=True,
                       default_root_dir=f"./model_{size}/",
                       max_epochs=2,
@@ -112,25 +121,22 @@ def main():
                       strategy=DeepSpeedStrategy(config="deepspeed_config.json"),
                       precision=16,
                       log_every_n_steps=1_000,
-                      callbacks=[ModelCheckpoint(dirpath=f"./model_{size}/", save_top_k=1, save_last=True, monitor="val_loss", every_n_train_steps=5_000)]
+                      callbacks=[ModelCheckpoint(dirpath=f"./model_{size}/", save_top_k=1, save_last=True, monitor="train_loss", every_n_train_steps=5_000),timing_callback]
     )
     # trainer.strategy.config["zero_force_ds_cpu_optimizer"] = False #turn this off
     logging.info('Init trainer')
     
 
-    
-    # read pretrain file
-    file_path = 'pretrain_info.csv'
-    df = pd.read_csv(file_path)
-    
-    start_event.record()
+    # file_path = 'pretrain_info.csv'
+    # df = pd.read_csv(file_path)
+    # start_event.record()
     trainer.fit(model, train_loader, test_loader)
-    end_event.record()
-    torch.cuda.synchronize()
-    gpu_time = start_event.elapsed_time(end_event) / 1000  # Time in milliseconds
-    df = df.astype(object)
-    df.loc[df['pretrain size'] == size, f'model train time ({ngpus} GPUs)'] = gpu_time
-    df.to_csv('pretrain_info.csv', index=False)
+    # end_event.record()
+    # torch.cuda.synchronize()
+    # gpu_time = start_event.elapsed_time(end_event) / 1000  # Time in milliseconds
+    # df = df.astype(object)
+    # df.loc[df['pretrain size'] == size, f'model train time ({ngpus} GPUs) [ds]'] = gpu_time
+    # df.to_csv('pretrain_info.csv', index=False)
     
     # trainer.save_model(f"./model_{size}_final/")
 
