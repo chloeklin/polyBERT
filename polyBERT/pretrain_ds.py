@@ -56,7 +56,7 @@ class DebertaMLM(L.LightningModule):
 
     def configure_optimizers(self):
         # Use AdamW optimizer
-        optimizer = FusedAdam(self.parameters(), lr=5e-5)
+        optimizer = DeepSpeedCPUAdam(self.parameters(), lr=5e-5)
         return optimizer
     
 
