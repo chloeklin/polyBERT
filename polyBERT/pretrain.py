@@ -71,7 +71,7 @@ def main():
         per_device_eval_batch_size=30,
         save_steps=1_000, #5000
         save_total_limit=1,
-        fp16=True,
+        # fp16=True,
         logging_steps=1_000,
         prediction_loss_only=True,
         # deepspeed = "deepspeed_config.json"
@@ -92,7 +92,7 @@ def main():
     df = pd.read_csv(file_path)
     df = df.astype(object)
         
-    if device=='cpu':
+    if not torch.cuda.is_available():
         start = time.process_time()
         a = trainer.train(resume_from_checkpoint=False) #trainer.train() #
         end = time.process_time()

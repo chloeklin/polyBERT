@@ -42,13 +42,13 @@ class DebertaMLM(L.LightningModule):
         return self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
 
     def training_step(self, batch, batch_idx):
-        outputs = self.model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'], labels=batch['labels'])
+        outputs = self.model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'], labels=batch['labels'], logger=True)
         loss = outputs.loss
         self.log('train_loss', loss, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        outputs = self.model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'], labels=batch['labels'])
+        outputs = self.model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'], labels=batch['labels'], logger=True)
         val_loss = outputs.loss
         # Log the validation loss
         self.log('val_loss', val_loss, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
@@ -108,8 +108,8 @@ def main():
         tokenizer=tokeniser, mlm=True, mlm_probability=0.15
     )
 
-    train_loader = DataLoader(dataset_train, batch_size=30, shuffle=True, collate_fn=data_collator)
-    test_loader = DataLoader(dataset_test, batch_size=30, shuffle=False, collate_fn=data_collator)
+    train_loader = DataLoader(dataset_train, batch_size=30, shuffle=True, collate_fn=data_collator, num_workers=11)
+    test_loader = DataLoader(dataset_test, batch_size=30, shuffle=False, collate_fn=data_collator, num_workers=11)
     logging.info('Setup datasets')
     
     """Train model"""
