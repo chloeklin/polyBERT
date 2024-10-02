@@ -2,8 +2,6 @@ transformers
 sentencepiece
 datasets
 pathlib
-torch
 accelerate
 scikit-learn
-deepspeed
-lightning
+numpy

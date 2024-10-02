@@ -13,7 +13,7 @@ import lightning as L
 from lightning.pytorch import Trainer, seed_everything
 from lightning.pytorch.callbacks import ModelCheckpoint, Callback
 from lightning.pytorch.strategies import DeepSpeedStrategy
-from deepspeed.ops.adam import DeepSpeedCPUAdam
+from deepspeed.ops.adam import FusedAdam, DeepSpeedCPUAdam
 
 
 class TimingCallback(Callback):
@@ -55,7 +55,7 @@ class DebertaMLM(L.LightningModule):
 
     def configure_optimizers(self):
         # Use AdamW optimizer
-        optimizer = DeepSpeedCPUAdam(self.parameters(), lr=5e-5)
+        optimizer = FusedAdam(self.parameters(), lr=5e-5)
         return optimizer
     
 

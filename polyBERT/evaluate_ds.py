@@ -10,9 +10,10 @@ from transformers import DebertaV2ForMaskedLM, DebertaV2Tokenizer, DataCollatorF
 from sklearn.metrics import f1_score
 """Deepspeed"""
 import lightning as L
-from deepspeed.ops.adam import DeepSpeedCPUAdam
+from deepspeed.ops.adam import DeepSpeedCPUAdam, FusedAdam
 from lightning.pytorch import Trainer, seed_everything
 from lightning.pytorch.strategies import DeepSpeedStrategy
+from lightning.pytorch.utilities.deepspeed import convert_zero_checkpoint_to_fp32_state_dict
 
 
 def create_masked_test_set(tokenizer, sentences, mask_prob=0.15):
@@ -75,7 +76,7 @@ class polyBERT(L.LightningModule):
 
     def configure_optimizers(self):
         # Use AdamW optimizer
-        optimizer = DeepSpeedCPUAdam(self.parameters(), lr=5e-5)
+        optimizer = FusedAdam(self.parameters(), lr=5e-5)
         return optimizer
     
     def predict_step(self, batch, batch_idx):        
@@ -92,9 +93,14 @@ class polyBERT(L.LightningModule):
     
 
 def evaluate(size, psmiles_strings, batch_size, ngpus, csv_file):
+    save_path = f"./model_{size}/last.ckpt"
+    output_path = f"./model_{size}/last.pt"
+    convert_zero_checkpoint_to_fp32_state_dict(save_path, output_path)
+
+
     # Init tokeniser and model
     tokeniser = DebertaV2Tokenizer(f"spm_{size}.model",f"spm_{size}.vocab")
-    model = polyBERT.load_from_checkpoint(f"./model_{size}.ckpt")
+    model = polyBERT.load_from_checkpoint(output_path)
     
     # Mask 15% of tokens of each string in test data
     masked_psmiles, ground_truth = create_masked_test_set(tokeniser,psmiles_strings)
