@@ -1,3 +1,4 @@
+import time
 import torch
 import argparse
 import logging
@@ -16,11 +17,11 @@ def main():
 
     # Define the command-line arguments
     parser.add_argument('--size', type=str, help='Pretraining size')
-    parser.add_argument('--ngpus', type=str, help='Number of GPUs')
+    parser.add_argument('--ndevices', type=str, help='Number of CPU/GPUs')
     # Parse the arguments
     args = parser.parse_args()
     size=args.size
-    ngpus=args.ngpus
+    ndevices=args.ndevices
     
     """Pretraining time"""
     start_event = torch.cuda.Event(enable_timing=True)
@@ -28,7 +29,7 @@ def main():
     
     """Device"""
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    torch.cuda.is_available() #checking if CUDA + Colab GPU works
+    # torch.cuda.is_available() #checking if CUDA + Colab GPU works
 
     """ Tokeniser"""
     tokenizer = DebertaV2Tokenizer(f"spm_{size}.model",f"spm_{size}.vocab")
@@ -63,7 +64,7 @@ def main():
 
     """Trainer"""
     training_args = TrainingArguments(
-        output_dir=f"./model_{size}/",
+        output_dir=f"./model_{size}_cpu/",
         overwrite_output_dir=True,
         num_train_epochs=2,
         per_device_train_batch_size=30,
@@ -73,7 +74,7 @@ def main():
         fp16=True,
         logging_steps=1_000,
         prediction_loss_only=True,
-        deepspeed = "deepspeed_config.json"
+        # deepspeed = "deepspeed_config.json"
         # disable_tqdm=True,
     )
     
@@ -89,14 +90,23 @@ def main():
     # read pretrain file
     file_path = 'pretrain_info.csv'
     df = pd.read_csv(file_path)
-    
-    start_event.record()
-    a = trainer.train(resume_from_checkpoint=False) #trainer.train() #
-    end_event.record()
-    torch.cuda.synchronize()
-    gpu_time = start_event.elapsed_time(end_event) / 1000  # Time in milliseconds
     df = df.astype(object)
-    df.loc[df['pretrain size'] == size, f'model train time ({ngpus} GPUs) [ds]'] = gpu_time
+        
+    if device=='cpu':
+        start = time.process_time()
+        a = trainer.train(resume_from_checkpoint=False) #trainer.train() #
+        end = time.process_time()
+        cpu_time = end - start
+        df.loc[df['pretrain size'] == size, f'model train time ({ndevices} CPUs)'] = cpu_time
+
+    else:
+
+        start_event.record()
+        a = trainer.train(resume_from_checkpoint=False) #trainer.train() #
+        end_event.record()
+        torch.cuda.synchronize()
+        gpu_time = start_event.elapsed_time(end_event) / 1000  # Time in milliseconds
+        df.loc[df['pretrain size'] == size, f'model train time ({ndevices} GPUs) [ds]'] = gpu_time
     df.to_csv('pretrain_info.csv', index=False)
     
     trainer.save_model(f"./model_{size}_final/")
