@@ -100,11 +100,7 @@ def evaluate(size, psmiles_strings, batch_size, ngpus, csv_file):
 
     # Init tokeniser and model
     tokeniser = DebertaV2Tokenizer(f"spm_{size}.model",f"spm_{size}.vocab")
-<<<<<<< HEAD
-    model = polyBERT.load_from_checkpoint(f"./model_{size}/last.ckpt")
-=======
     model = polyBERT.load_from_checkpoint(output_path)
->>>>>>> fb5e7bb20f3264e513dbc2fc3d5c48ab91f87b8f
     
     # Mask 15% of tokens of each string in test data
     masked_psmiles, ground_truth = create_masked_test_set(tokeniser,psmiles_strings)
