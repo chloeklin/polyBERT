@@ -15,6 +15,7 @@ from lightning.pytorch.callbacks import ModelCheckpoint, Callback
 from lightning.pytorch.strategies import DeepSpeedStrategy
 from torch.optim import Adam
 from deepspeed.ops.adam import FusedAdam, DeepSpeedCPUAdam
+import deepspeed
 
 
 class TimingCallback(Callback):
@@ -73,13 +74,16 @@ def main():
     
     # sets seeds for numpy, torch and python.random.
     seed_everything(1, workers=True)
+    
+    #force build CPUAdam
+    deepspeed.ops.adam.cpu_adam.CPUAdamBuilder().load()
 
     """Pretraining time"""
     # start_event = torch.cuda.Event(enable_timing=True)
     # end_event = torch.cuda.Event(enable_timing=True)
     
     """Tokeniser"""
-    tokeniser = DebertaV2Tokenizer(f"spm_{size}.model",f"spm_{size}.vocab")
+    tokeniser = DebertaV2Tokenizer(f"spm/spm_{size}.model",f"spm/spm_{size}.vocab")
     logging.basicConfig(level=logging.INFO)
     logging.info('Init tokeniser')
 
