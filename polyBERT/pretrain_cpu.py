@@ -40,7 +40,7 @@ def main():
 
     
     """Device"""
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    device = torch.device('cpu')
     
     """ Tokeniser"""
     tokenizer = DebertaV2Tokenizer(f"spm/spm_{size}.model",f"spm/spm_{size}.vocab")
@@ -80,18 +80,19 @@ def main():
 
     """Trainer"""
     training_args = TrainingArguments(
-    output_dir=f"./model_{size}/",
+    output_dir=f"./model_{size}_cpu/",
     overwrite_output_dir=True,
     num_train_epochs=2,
-    per_device_train_batch_size=60 ,#30
-    per_device_eval_batch_size=60 ,#30
-    save_steps=5_000,
+    per_device_train_batch_size=1000, #30
+    per_device_eval_batch_size=1000, #30
+    save_steps=5_0000,
     save_total_limit=1,
-    fp16=True,
-    logging_steps=1_000,
+    fp16=False,
+    logging_steps=1_0000,
     prediction_loss_only=True,
     # disable_tqdm=True,
-)
+    dataloader_num_workers=16
+    )
     
     trainer = Trainer(
         model=model,
@@ -110,10 +111,10 @@ def main():
     df = df.astype(object)
         
     start = time.process_time()
-    a = trainer.train(resume_from_checkpoint=True) #trainer.train() #
+    a = trainer.train(resume_from_checkpoint=False) #trainer.train() #
     end = time.process_time()
     cpu_time = end - start
-    df.loc[df['pretrain size'] == size, f'model train time ({ndevices} GPUs)'] = cpu_time
+    df.loc[df['pretrain size'] == size, f'model train time ({ndevices} CPUs)'] = cpu_time
 
   
     df.to_csv('pretrain_info.csv', index=False)

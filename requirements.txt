@@ -5,3 +5,6 @@ pathlib
 accelerate
 scikit-learn
 numpy
+lightning
+pytorch-lightning
+sentence-transformers

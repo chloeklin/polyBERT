@@ -4,6 +4,7 @@ import csv
 import random
 import argparse
 """Model setup"""
+import torch
 from torch.utils.data import DataLoader, TensorDataset
 from transformers import DebertaV2ForMaskedLM, DebertaV2Tokenizer, DataCollatorForLanguageModeling, Trainer, TrainingArguments
 """Evaluation"""
@@ -33,6 +34,7 @@ def create_masked_test_set(tokenizer, sentences, mask_prob=0.15):
         masked_sentences.append(tokenizer.convert_tokens_to_string(masked_sentence))
 
     return masked_sentences, ground_truth
+
 
 def write_row_to_csv(file_path, row):
     # Check if the file exists
@@ -67,17 +69,21 @@ class polyBERT(L.LightningModule):
     def training_step(self, batch, batch_idx):
         outputs = self.model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'], labels=batch['labels'])
         loss = outputs.loss
+        self.log('train_loss', loss, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
         outputs = self.model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'], labels=batch['labels'])
         val_loss = outputs.loss
+        # Log the validation loss
+        self.log('val_loss', val_loss, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
         return val_loss
 
     def configure_optimizers(self):
         # Use AdamW optimizer
         optimizer = FusedAdam(self.parameters(), lr=5e-5)
         return optimizer
+    
     
     def predict_step(self, batch, batch_idx):        
         # Run inference to get predictions for masked tokens
@@ -93,13 +99,13 @@ class polyBERT(L.LightningModule):
     
 
 def evaluate(size, psmiles_strings, batch_size, ngpus, csv_file):
-    save_path = f"./model_{size}/last.ckpt"
-    output_path = f"./model_{size}/last.pt"
-    convert_zero_checkpoint_to_fp32_state_dict(save_path, output_path)
+    # save_path = f"./model_{size}_ds/last.ckpt"
+    output_path = f"./model_{size}_ds/last.pt"
+    # convert_zero_checkpoint_to_fp32_state_dict(save_path, output_path)
 
 
     # Init tokeniser and model
-    tokeniser = DebertaV2Tokenizer(f"spm_{size}.model",f"spm_{size}.vocab")
+    tokeniser = DebertaV2Tokenizer(f"spm/spm_{size}.model",f"spm/spm_{size}.vocab")
     model = polyBERT.load_from_checkpoint(output_path)
     
     # Mask 15% of tokens of each string in test data
@@ -109,8 +115,11 @@ def evaluate(size, psmiles_strings, batch_size, ngpus, csv_file):
     inputs = tokeniser(masked_psmiles, return_tensors='pt', padding=True)
     
     # Create a DataLoader to batch inputs
-    dataset = TensorDataset(inputs['input_ids'], inputs['attention_mask'])
-    dataloader = DataLoader(dataset, batch_size=batch_size)
+    dataset = Dataset.load_from_disk(f"data/tokenized_{size}/train")
+    
+    dataset.set_format(type='torch', columns=['input_ids'])
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=11)
+
     
     all_predicted_token_ids = []
     all_true_token_ids = tokeniser.convert_tokens_to_ids(ground_truth)
@@ -118,7 +127,8 @@ def evaluate(size, psmiles_strings, batch_size, ngpus, csv_file):
     trainer = Trainer(deterministic=True,
                       accelerator='gpu',
                       devices=ngpus,
-                      strategy=DeepSpeedStrategy(config="zero3_config.json"),
+                      strategy="deepspeed_stage_3",
+                      enable_progress_bar=True,
                       precision=16)
     predictions = trainer.predict(model, dataloader)
 
@@ -128,6 +138,7 @@ def evaluate(size, psmiles_strings, batch_size, ngpus, csv_file):
 
     # Compute F1 score (using token IDs for comparison)
     f1 = f1_score(all_true_token_ids, all_predicted_token_ids, average='micro')
+    print(f"F1 score: {f1}")
 
     write_row_to_csv(csv_file, [size,f1])
 

@@ -128,6 +128,7 @@ def visualise_prediction(data, model, test_loader, loss_fn):
         target_true.extend(batch_targets.tolist())
     
     test_loss /= len(test_loader)
+    print(f"{data} Test MSE: {test_loss:2f}")
     target_true = np.array(target_true)
     target_pred = np.array(target_pred)
     
@@ -140,4 +141,4 @@ def visualise_prediction(data, model, test_loader, loss_fn):
     plt.xticks([])
     plt.yticks([])
 
-    return fig
+    return test_loss, fig
