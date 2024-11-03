@@ -114,7 +114,7 @@ def evaluate(size, batch_size):
     logging.info('Init tokeniser')
     
     """Model"""
-    state_dict = torch.load(f"model_{size}_state_dict.pth")
+    state_dict = torch.load(f"model_state_dict/model_{size}_state_dict.pth")
     
     # Configuration for the DeBERTa model
     config = DebertaV2Config(
@@ -138,7 +138,7 @@ def evaluate(size, batch_size):
   
     
     """Mask dataset"""
-    ground_truth = load_txt_to_list(f"truth_eval_{size}.txt")
+    ground_truth = load_txt_to_list(f"data/truth_eval_{size}.txt")
     dataset = load_tokenised_data(f"data/tokenised_eval_{size}")
     logging.info('Loaded tokenised dataset')
     

@@ -119,10 +119,10 @@ def main():
     logging.info('Init tokeniser')
 
     masked_psmiles, ground_truth = mask_sentences(psmiles_strings,tokeniser)
-    save_list_to_txt(f"masked_eval_{size}.txt", masked_psmiles)
-    save_list_to_txt(f"truth_eval_{size}.txt", ground_truth)
+    save_list_to_txt(f"data/masked_eval_{size}.txt", masked_psmiles)
+    save_list_to_txt(f"data/truth_eval_{size}.txt", ground_truth)
     # Tokenize the sentences
-    dataset = tokenise_sentences(f"masked_eval_{size}.txt", tokeniser)
+    dataset = tokenise_sentences(f"data/masked_eval_{size}.txt", tokeniser)
     dataset.save_to_disk(f'data/tokenised_eval_{size}')
     
 
