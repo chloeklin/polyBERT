@@ -1,7 +1,0 @@
-pretrain size,tokeniser train time (CPU),model train time (1 GPUs),model train time (3 GPUs),model train time (4 GPUs),model train time (4 GPUs) [ds]
-1M,28,5377.0,4185.0,5082.129658397,3960.832408377
-5M,153,,24772.0,25362.195812134,8993.430437555
-10M,158,,0.0,0.0,
-20M,160,,0.0,0.0,
-50M,170,,0.0,0.0,65777.415293392
-90M,194,,0.0,0.0,

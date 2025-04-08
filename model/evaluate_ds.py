@@ -1,11 +1,12 @@
 """Utility packages"""
 import os
 import csv
-import random
+
 import argparse
 """Model setup"""
 import torch
 from torch.utils.data import DataLoader, TensorDataset
+from datasets import Dataset
 from transformers import DebertaV2ForMaskedLM, DebertaV2Tokenizer, DataCollatorForLanguageModeling, Trainer, TrainingArguments
 """Evaluation"""
 from sklearn.metrics import f1_score
@@ -15,28 +16,14 @@ from deepspeed.ops.adam import DeepSpeedCPUAdam, FusedAdam
 from lightning.pytorch import Trainer, seed_everything
 from lightning.pytorch.strategies import DeepSpeedStrategy
 from lightning.pytorch.utilities.deepspeed import convert_zero_checkpoint_to_fp32_state_dict
+from polyBERT import polyBERT
+from utils.data_utils import create_masked_test_set
+from utils.model_utils import load_tokenizer, load_model, zero_checkpoint_to_fp32
 
 
-def create_masked_test_set(tokenizer, sentences, mask_prob=0.15):
-    masked_sentences = []
-    ground_truth = []
-
-    for sentence in sentences:
-        tokenized_input = tokenizer.tokenize(sentence)
-        masked_sentence = tokenized_input.copy()  # Copy of tokenized sentence
-        ground_truth_sentence = []
-
-        for i, token in enumerate(tokenized_input):
-            if random.random() < mask_prob:  # Mask with a certain probability (e.g., 15%)
-                ground_truth.append(token)  # Store original token
-                masked_sentence[i] = tokenizer.mask_token  # Replace with [MASK]
-
-        masked_sentences.append(tokenizer.convert_tokens_to_string(masked_sentence))
-
-    return masked_sentences, ground_truth
 
 
-def write_row_to_csv(file_path, row):
+def write_row_to_csv(file_path, row, header=None):
     # Check if the file exists
     file_exists = os.path.isfile(file_path)
 
@@ -46,67 +33,26 @@ def write_row_to_csv(file_path, row):
 
         # If the file doesn't exist, write the header first (optional)
         if not file_exists:
-            header = ['Pretrain size', 'f1-score']  # Adjust according to your needs
             writer.writerow(header)
 
         # Write the new row
         writer.writerow(row)
 
-class polyBERT(L.LightningModule):
-    def __init__(self, config, tokeniser):
-        super().__init__()
-        self.tokeniser = tokeniser
-        self.model = DebertaV2ForMaskedLM(config=config)
-        self.model.resize_token_embeddings(len(tokeniser))
-        self.data_collator = DataCollatorForLanguageModeling(
-            tokenizer=tokeniser, mlm=True, mlm_probability=0.15
-        )
-        self.save_hyperparameters()
 
-    def forward(self, input_ids, attention_mask=None, labels=None):
-        return self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
-
-    def training_step(self, batch, batch_idx):
-        outputs = self.model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'], labels=batch['labels'])
-        loss = outputs.loss
-        self.log('train_loss', loss, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
-        return loss
-
-    def validation_step(self, batch, batch_idx):
-        outputs = self.model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'], labels=batch['labels'])
-        val_loss = outputs.loss
-        # Log the validation loss
-        self.log('val_loss', val_loss, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
-        return val_loss
-
-    def configure_optimizers(self):
-        # Use AdamW optimizer
-        optimizer = FusedAdam(self.parameters(), lr=5e-5)
-        return optimizer
-    
-    
-    def predict_step(self, batch, batch_idx):        
-        # Run inference to get predictions for masked tokens
-        outputs = self.model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'])
-        predictions = outputs.logits
-
-        # Get the predicted token IDs for the masked positions
-        masked_indices = (batch['input_ids'] == self.tokeniser.mask_token_id).nonzero(as_tuple=True)
-        predicted_token_ids = predictions[masked_indices].argmax(dim=-1)
-        
-        # Return predicted token IDs
-        return predicted_token_ids.cpu().numpy()
     
 
-def evaluate(size, psmiles_strings, batch_size, ngpus, csv_file):
+def evaluate(root_dir, size, psmiles_strings, batch_size, ngpus, csv_file):
     # save_path = f"./model_{size}_ds/last.ckpt"
-    output_path = f"./model_{size}_ds/last.pt"
+    # output_path = f"./model_{size}_ds/last.pt"
+    model_path = f"{root_dir}/pretrain_models/model_state_dict/model_{size}_state_dict.pth"
     # convert_zero_checkpoint_to_fp32_state_dict(save_path, output_path)
+    if not os.path.isfile(model_path):
+        zero_checkpoint_to_fp32(f"{root_dir}/pretrain_models/", size)
 
 
     # Init tokeniser and model
-    tokeniser = DebertaV2Tokenizer(f"spm/spm_{size}.model",f"spm/spm_{size}.vocab")
-    model = polyBERT.load_from_checkpoint(output_path)
+    tokeniser = load_tokenizer(f"{root_dir}/tokeniser/spm/", size)
+    model = load_model(tokeniser, 'lightning', ckpt=model_path)
     
     # Mask 15% of tokens of each string in test data
     masked_psmiles, ground_truth = create_masked_test_set(tokeniser,psmiles_strings)
@@ -140,7 +86,7 @@ def evaluate(size, psmiles_strings, batch_size, ngpus, csv_file):
     f1 = f1_score(all_true_token_ids, all_predicted_token_ids, average='micro')
     print(f"F1 score: {f1}")
 
-    write_row_to_csv(csv_file, [size,f1])
+    write_row_to_csv(csv_file, [size,f1], ['Pretrain size', 'f1-score'])
 
 
 

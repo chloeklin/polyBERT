@@ -2,6 +2,10 @@ transformers
 sentencepiece
 datasets
 pathlib
+openpyxl
+matplotlib
+seaborn
+xgboost
 accelerate
 scikit-learn
 numpy

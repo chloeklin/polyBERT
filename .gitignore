@@ -1,27 +1,30 @@
+# Text & Data Files
 *.txt
-*.csv
-*.pth
-
-polyBERT/*/
-polyBERT/model*/
-polyBERT/data/
-polyBERT/dataset*/
-polyBERT/trained_regression/
-polyBERT/figs/*
-*.sh
-*.sh.*
-
-*.ipynb
-.ipynb_checkpoints
 *.model
 *.vocab
-spm.vocab_ref
-/venv/
-.DS_Store
-generated_*.txt
-/copolymer_informatics
-/finetune_data
-/multitask-venv/
-multitask*.txt
-/regression_data/
 *.pt
+*.pth
+**/.DS_Store
+*.ipynb
+*.sh
+*.sh.*
+*.zip
+
+# Special generated files
+spm.vocab_ref
+deepspeed_config.json
+
+# Checkpoint files
+**/.ipynb_checkpoints/
+
+# Tokenizer/model directories
+polyBERT/*
+/polyBERT/trained_regression/
+figures/*
+original_model/*
+original_tok/*
+
+# Environment folders
+*.venv
+
+
