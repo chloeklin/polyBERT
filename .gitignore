@@ -6,7 +6,6 @@
 *.pth
 **/.DS_Store
 *.ipynb
-*.sh
 *.sh.*
 *.zip
 
