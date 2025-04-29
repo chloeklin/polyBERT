@@ -1,5 +1,5 @@
 transformers
-# sentencepiece
+sentencepiece
 datasets
 pathlib
 openpyxl
@@ -9,6 +9,6 @@ xgboost
 accelerate
 scikit-learn
 numpy
-#lightning
+lightning
 #pytorch-lightning
 # sentence-transformers

@@ -25,9 +25,8 @@ special_tokens += elements + small_elements
 def train(root_dir: str, size: str):
     # Record the start time on CPU
     start = time.process_time()
-
-    spm.SentencePieceTrainer.train(input=f'{root_dir}/data/pretrain/psmiles_train_{size}.txt',
-                                model_prefix=f'{root_dir}/tokeniser/spm/spm_{size}',
+    spm.SentencePieceTrainer.train(input=os.path.join(root_dir, "data","pretrain", f"psmiles_train_{size}.txt"),
+                                model_prefix=os.path.join(root_dir, "tokeniser",f"spm_{size}", f"spm"),
                                 vocab_size=265,
                                 input_sentence_size=5_000_000,
                                 #    shuffle_input_sentence=True, # data set is already shuffled

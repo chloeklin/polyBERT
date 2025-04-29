@@ -57,20 +57,21 @@ def main():
     data_collator = DataCollatorForLanguageModeling(
         tokenizer=tokeniser, mlm=True, mlm_probability=0.15
     )
-    dataset_train, dataset_test = load_pretrain_data(f"{args.root_dir}/data/pretrain/tokenised_{size}/")
+    
+    dataset_train, dataset_test = load_pretrain_data(os.path.join(args.root_dir,"data","pretrain",f"tokenised_{size}"))
     train_loader = DataLoader(dataset_train, batch_size=60, shuffle=True, collate_fn=data_collator, num_workers=11)
     test_loader = DataLoader(dataset_test, batch_size=60, shuffle=False, collate_fn=data_collator, num_workers=11)
     logging.info('Setup datasets')
     
     """Train model"""
-    timing_callback = TimingCallback()
-    ckpt_callback = ModelCheckpoint(dirpath=f"{args.root_dir}/pretrain_models/model_{size}_ds/", save_top_k=1, save_last=True, monitor="val_loss", mode="min", every_n_train_steps=5_000)
+    timing_callback = TimingCallback() 
+    ckpt_callback = ModelCheckpoint(dirpath=os.path.join(args.root_dir, "pretrain_models",f"model_{size}_ds"), save_top_k=1, save_last=True, monitor="val_loss", mode="min", every_n_train_steps=5_000)
 
-    last_ckpt_path = f"{args.root_dir}/pretrain_models/model_{size}_ds/last.ckpt"
+    last_ckpt_path = os.path.join(args.root_dir, "pretrain_models",f"model_{size}_ds","last.ckpt")
     resume_ckpt = last_ckpt_path if os.path.exists(last_ckpt_path) else None
 
     trainer = Trainer(deterministic=True,
-                      default_root_dir=f"{args.root_dir}/pretrain_models/model_{size}_ds/",
+                      default_root_dir=os.path.join(args.root_dir, "pretrain_models",f"model_{size}_ds"),
                       max_epochs=2,
                       accelerator='gpu',
                       devices=ngpus,
